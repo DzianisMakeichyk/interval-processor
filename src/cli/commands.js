@@ -4,7 +4,7 @@ import { IntervalProcessor } from '../core/IntervalProcessor.js';
 import { Interval } from '../core/Interval.js';
 import { parseIntervals } from '../utils/parsers.js';
 import { validateFileInput, validateCliArgs } from '../utils/validators.js';
-import { getBasicStatistics } from '../utils/statistics.js';
+import { getComprehensiveStatistics } from '../utils/statistics.js';
 import { 
   formatOutput, 
   formatError, 
@@ -15,7 +15,7 @@ import {
 } from './formatters.js';
 
 // Process intervals from command line arguments
-export const processFromArgs = (includes, excludes) => {
+export const processFromArgs = async (includes, excludes) => {
   try {
     // Validate inputs
     const validation = validateCliArgs(includes, excludes);
@@ -24,13 +24,22 @@ export const processFromArgs = (includes, excludes) => {
       throw new Error(validation.error);
     }
 
-    // Process intervals
-    const result = IntervalProcessor.process({
-      includes,
-      excludes: excludes ?? ''
-    });
+    // Parse intervals for comprehensive statistics
+    const includesIntervals = parseIntervals(includes);
 
-    return result;
+    // Get comprehensive statistics with memory measurement
+    const stats = await getComprehensiveStatistics(
+      includesIntervals,
+      () => IntervalProcessor.process({
+        includes,
+        excludes: excludes ?? ''
+      })
+    );
+
+    return {
+      ...stats.processing.result,
+      comprehensiveStats: stats
+    };
 
   } catch (error) {
     throw new Error(`Processing failed: ${error?.message ?? 'Unknown error'}`);
@@ -63,12 +72,21 @@ export const processFromFile = async (filePath) => {
     }
 
     // Handle single object format (backward compatibility)
-    const result = IntervalProcessor.process({
-      includes: data.includes,
-      excludes: data.excludes ?? ''
-    });
+    const includesIntervals = parseIntervals(data.includes);
+    const excludesIntervals = data.excludes ? parseIntervals(data.excludes) : [];
 
-    return result;
+    const stats = await getComprehensiveStatistics(
+      includesIntervals,
+      () => IntervalProcessor.process({
+        includes: data.includes,
+        excludes: data.excludes ?? ''
+      })
+    );
+
+    return {
+      ...stats.processing.result,
+      comprehensiveStats: stats
+    };
   } catch (error) {
     // Enhanced error messages with nullish coalescing
     const message = error?.message ?? 'Unknown error';
@@ -84,22 +102,31 @@ export const processFromFile = async (filePath) => {
 };
 
 // Process an array of interval objects
-const processArrayOfObjects = (dataArray) => {
+const processArrayOfObjects = async (dataArray) => {
   const allResults = [];
+  const allStats = [];
   
   for (let i = 0; i < dataArray.length; i++) {
     const item = dataArray[i];
-    const result = IntervalProcessor.process({
-      includes: item.includes,
-      excludes: item.excludes ?? ''
-    });
+    const includesIntervals = parseIntervals(item.includes);
+
+    const stats = await getComprehensiveStatistics(
+      includesIntervals,
+      () => IntervalProcessor.process({
+        includes: item.includes,
+        excludes: item.excludes ?? ''
+      })
+    );
+    
+    allStats.push(stats);
     
     allResults.push({
       index: i + 1,
       includes: Array.isArray(item.includes) ? item.includes.join(', ') : item.includes,
       excludes: item.excludes ? (Array.isArray(item.excludes) ? item.excludes.join(', ') : item.excludes) : '(none)',
-      result: result.formatted,
-      intervals: result.intervals
+      result: stats.processing.result.formatted,
+      intervals: stats.processing.result.intervals,
+      comprehensiveStats: stats
     });
   }
 
@@ -109,7 +136,8 @@ const processArrayOfObjects = (dataArray) => {
   return {
     multipleResults: allResults,
     intervals: combinedIntervals,
-    formatted: allResults.map(r => `Set ${r.index}: ${r.result}`).join('\n')
+    formatted: allResults.map(r => `Set ${r.index}: ${r.result}`).join('\n'),
+    allComprehensiveStats: allStats
   };
 };
 
@@ -135,15 +163,33 @@ const displayMultipleResults = (result) => {
   // Overall statistics
   if (result.intervals.length > 0) {
     const allIntervalObjects = result.intervals.map(i => Interval.fromObject(i));
-    const overallStats = getBasicStatistics(allIntervalObjects);
     
     console.log('');
     console.log(formatMuted('📈 OVERALL STATISTICS:'));
     console.log(formatMuted(`   • Total sets processed: ${result.multipleResults.length}`));
-    console.log(formatMuted(`   • Total intervals: ${overallStats.count}`));
-    console.log(formatMuted(`   • Total coverage: ${overallStats.totalCoverage} individual numbers`));
-    if (overallStats.count > 0) {
-      console.log(formatMuted(`   • Range: ${overallStats.minStart} to ${overallStats.maxEnd}`));
+    console.log(formatMuted(`   • Total intervals: ${allIntervalObjects.length}`));
+    console.log(formatMuted(`   • Total coverage: ${allIntervalObjects.reduce((sum, interval) => sum + (interval.end - interval.start + 1), 0)} individual numbers`));
+
+    if (allIntervalObjects.length > 0) {
+      const starts = allIntervalObjects.map(i => i.start);
+      const ends = allIntervalObjects.map(i => i.end);
+      console.log(formatMuted(`   • Range: ${Math.min(...starts)} to ${Math.max(...ends)}`));
+    }
+    
+    // Memory usage summary
+    if (result.allComprehensiveStats && result.allComprehensiveStats.length > 0) {
+      const totalExecutionTime = result.allComprehensiveStats.reduce((sum, s) => 
+        sum + (s.processing ? s.processing.summary.executionTimeMs : 0), 0);
+      const avgMemoryGrowth = result.allComprehensiveStats.reduce((sum, s) => 
+        sum + (s.processing ? s.processing.summary.memoryGrowth : 0), 0) / result.allComprehensiveStats.length;
+      const maxPeakHeap = Math.max(...result.allComprehensiveStats.map(s => 
+        s.processing ? s.processing.summary.peakHeapUsed : 0));
+      
+      console.log('');
+      console.log(formatMuted('⚡ PERFORMANCE SUMMARY:'));
+      console.log(formatMuted(`   • Total execution time: ${totalExecutionTime.toFixed(2)} ms`));
+      console.log(formatMuted(`   • Average memory growth per set: ${avgMemoryGrowth.toFixed(2)} MB`));
+      console.log(formatMuted(`   • Peak heap usage: ${maxPeakHeap.toFixed(2)} MB`));
     }
   }
 
@@ -182,10 +228,10 @@ export const handleCommand = async (options) => {
       // Direct input mode
       includesInput = options.includes;
       excludesInput = options.excludes || '';
-      result = processFromArgs(options.includes, options.excludes);
+      result = await processFromArgs(options.includes, options.excludes);
     } else {
       throw new Error('No input provided. Use -i for includes or --file for file input.');
-    }
+    };
 
     // Display beautiful formatted results
     console.log('');
@@ -206,26 +252,43 @@ export const handleCommand = async (options) => {
     
     // Show statistics if there are intervals
     if (result.intervals.length > 0) {
-      const intervalObjects = result.intervals.map(i => Interval.fromObject(i));
-      const stats = getBasicStatistics(intervalObjects);
+      const stats = result.comprehensiveStats;
       
-      // Calculate excluded coverage
+      // Calculate excluded coverage if needed
       let excludedCoverage = 0;
+
       if (excludesInput) {
         const excludeIntervals = parseIntervals(excludesInput);
-        const excludeStats = getBasicStatistics(excludeIntervals);
-        excludedCoverage = excludeStats.totalCoverage;
-      }
+        excludedCoverage = excludeIntervals.reduce((sum, interval) => 
+          sum + (interval.end - interval.start + 1), 0);
+      };
       
       console.log('');
       console.log(formatMuted('📊 Statistics:'));
-      console.log(formatMuted(`   • Number of intervals: ${stats.count}`));
-      console.log(formatMuted(`   • Total coverage: ${stats.totalCoverage} individual numbers`));
+      console.log(formatMuted(`   • Number of intervals: ${stats.intervals.count}`));
+      console.log(formatMuted(`   • Total coverage: ${stats.intervals.totalCoverage} individual numbers`));
+
       if (excludedCoverage > 0) {
         console.log(formatMuted(`   • Total excluded: ${excludedCoverage} individual numbers`));
+      };
+
+      console.log(formatMuted(`   • Range: ${stats.intervals.minStart} to ${stats.intervals.maxEnd}`));
+      
+      // Show comprehensive performance data
+      if (stats.processing) {
+        const perf = stats.processing;
+
+        console.log('');
+        console.log(formatMuted('⚡ Performance:'));
+        console.log(formatMuted(`   • Execution time: ${perf.summary.executionTimeMs} ms`));
+        console.log(formatMuted(`   • Memory growth: ${perf.summary.memoryGrowth} MB`));
+        console.log(formatMuted(`   • Peak heap used: ${perf.summary.peakHeapUsed} MB`));
+        
+        if (perf.error) {
+          console.log(formatError(`   • Error occurred: ${perf.error.message}`));
+        }
       }
-      console.log(formatMuted(`   • Range: ${stats.minStart} to ${stats.maxEnd}`));
-    }
+    };
     
     console.log('');
     console.log(formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));

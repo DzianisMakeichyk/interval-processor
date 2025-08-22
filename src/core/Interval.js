@@ -69,12 +69,6 @@ export class Interval {
     return result;
   };
 
-  // Get the size (number of integers) in this interval
-  size = () => this.end - this.start + 1;
-
-  // Clone this interval (returns new instance)
-  clone = () => new Interval(this.start, this.end);
-
   // String representation of the interval
   toString = () => `${this.start}-${this.end}`;
 
