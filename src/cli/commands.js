@@ -1,367 +1,363 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { IntervalProcessor } from '../core/IntervalProcessor.js';
-import { Interval } from '../core/Interval.js';
-import { parseIntervals } from '../utils/parsers.js';
-import { validateFileInput, validateCliArgs } from '../utils/validators.js';
-import { getComprehensiveStatistics } from '../utils/statistics.js';
-import { 
-  formatOutput, 
-  formatError, 
-  formatSuccess, 
-  formatInfo, 
-  formatHighlight, 
-  formatMuted 
-} from './formatters.js';
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { IntervalProcessor } from "../core/IntervalProcessor.js";
+import { Interval } from "../core/Interval.js";
+import { parseIntervals } from "../utils/parsers.js";
+import { validateFileInput, validateCliArgs } from "../utils/validators.js";
+import { getComprehensiveStatistics } from "../utils/statistics.js";
+import { formatOutput, formatError, formatSuccess, formatInfo, formatHighlight, formatMuted } from "./formatters.js";
 
 // Process intervals from command line arguments
 export const processFromArgs = async (includes, excludes) => {
-  try {
-    // Validate inputs
-    const validation = validateCliArgs(includes, excludes);
+	try {
+		// Validate inputs
+		const validation = validateCliArgs(includes, excludes);
 
-    if (!validation.valid) {
-      throw new Error(validation.error);
-    }
+		if (!validation.valid) {
+			throw new Error(validation.error);
+		}
 
-    // Parse intervals for comprehensive statistics
-    const includesIntervals = parseIntervals(includes);
+		// Parse intervals for comprehensive statistics
+		const includesIntervals = parseIntervals(includes);
 
-    // Get comprehensive statistics with memory measurement
-    const stats = await getComprehensiveStatistics(
-      includesIntervals,
-      () => IntervalProcessor.process({
-        includes,
-        excludes: excludes ?? ''
-      })
-    );
+		// Get comprehensive statistics with memory measurement
+		const stats = await getComprehensiveStatistics(includesIntervals, () =>
+			IntervalProcessor.process({
+				includes,
+				excludes: excludes ?? "",
+			})
+		);
 
-    return {
-      ...stats.processing.result,
-      comprehensiveStats: stats
-    };
-
-  } catch (error) {
-    throw new Error(`Processing failed: ${error?.message ?? 'Unknown error'}`);
-  }
+		return {
+			...stats.processing.result,
+			comprehensiveStats: stats,
+		};
+	} catch (error) {
+		throw new Error(`Processing failed: ${error?.message ?? "Unknown error"}`);
+	}
 };
 
 // Process intervals from a JSON file - supports both single object and array of objects
 export const processFromFile = async (filePath) => {
-  try {
-    const absolutePath = resolve(filePath);
-    const content = await readFile(absolutePath, { encoding: 'utf8' });
-    
-    // Parse JSON
-    let data;
-    try {
-      data = JSON.parse(content);
-    } catch {
-      throw new Error('Invalid JSON format in file');
-    };
+	try {
+		const absolutePath = resolve(filePath);
+		const content = await readFile(absolutePath, { encoding: "utf8" });
 
-    const validation = validateFileInput(data);
+		// Parse JSON
+		let data;
+		try {
+			data = JSON.parse(content);
+		} catch {
+			throw new Error("Invalid JSON format in file");
+		}
 
-    if (!validation.valid) {
-      throw new Error(validation.error);
-    }
+		const validation = validateFileInput(data);
 
-    // Handle array of objects format
-    if (Array.isArray(data)) {
-      return processArrayOfObjects(data);
-    }
+		if (!validation.valid) {
+			throw new Error(validation.error);
+		}
 
-    // Handle single object format (backward compatibility)
-    const includesIntervals = parseIntervals(data.includes);
-    const excludesIntervals = data.excludes ? parseIntervals(data.excludes) : [];
+		// Handle array of objects format
+		if (Array.isArray(data)) {
+			return processArrayOfObjects(data);
+		}
 
-    const stats = await getComprehensiveStatistics(
-      includesIntervals,
-      () => IntervalProcessor.process({
-        includes: data.includes,
-        excludes: data.excludes ?? ''
-      })
-    );
+		// Handle single object format (backward compatibility)
+		const includesIntervals = parseIntervals(data.includes);
+		const excludesIntervals = data.excludes ? parseIntervals(data.excludes) : [];
 
-    return {
-      ...stats.processing.result,
-      comprehensiveStats: stats
-    };
-  } catch (error) {
-    // Enhanced error messages with nullish coalescing
-    const message = error?.message ?? 'Unknown error';
-    
-    if (error?.code === 'ENOENT') {
-      throw new Error(`File not found: ${filePath}`);
-    } else if (error?.code === 'EACCES') {
-      throw new Error(`Permission denied: ${filePath}`);
-    } else {
-      throw new Error(`File processing failed: ${message}`);
-    }
-  }
+		const stats = await getComprehensiveStatistics(includesIntervals, () =>
+			IntervalProcessor.process({
+				includes: data.includes,
+				excludes: data.excludes ?? "",
+			})
+		);
+
+		return {
+			...stats.processing.result,
+			comprehensiveStats: stats,
+		};
+	} catch (error) {
+		// Enhanced error messages with nullish coalescing
+		const message = error?.message ?? "Unknown error";
+
+		if (error?.code === "ENOENT") {
+			throw new Error(`File not found: ${filePath}`);
+		} else if (error?.code === "EACCES") {
+			throw new Error(`Permission denied: ${filePath}`);
+		} else {
+			throw new Error(`File processing failed: ${message}`);
+		}
+	}
 };
 
 // Process an array of interval objects
 const processArrayOfObjects = async (dataArray) => {
-  const allResults = [];
-  const allStats = [];
-  
-  for (let i = 0; i < dataArray.length; i++) {
-    const item = dataArray[i];
-    const includesIntervals = parseIntervals(item.includes);
+	const allResults = [];
+	const allStats = [];
 
-    const stats = await getComprehensiveStatistics(
-      includesIntervals,
-      () => IntervalProcessor.process({
-        includes: item.includes,
-        excludes: item.excludes ?? ''
-      })
-    );
-    
-    allStats.push(stats);
-    
-    allResults.push({
-      index: i + 1,
-      includes: Array.isArray(item.includes) ? item.includes.join(', ') : item.includes,
-      excludes: item.excludes ? (Array.isArray(item.excludes) ? item.excludes.join(', ') : item.excludes) : '(none)',
-      result: stats.processing.result.formatted,
-      intervals: stats.processing.result.intervals,
-      comprehensiveStats: stats
-    });
-  }
+	for (let i = 0; i < dataArray.length; i++) {
+		const item = dataArray[i];
+		const includesIntervals = parseIntervals(item.includes);
 
-  // Combine all intervals for overall statistics
-  const combinedIntervals = allResults.flatMap(r => r.intervals);
-  
-  return {
-    multipleResults: allResults,
-    intervals: combinedIntervals,
-    formatted: allResults.map(r => `Set ${r.index}: ${r.result}`).join('\n'),
-    allComprehensiveStats: allStats
-  };
+		const stats = await getComprehensiveStatistics(includesIntervals, () =>
+			IntervalProcessor.process({
+				includes: item.includes,
+				excludes: item.excludes ?? "",
+			})
+		);
+
+		allStats.push(stats);
+
+		allResults.push({
+			index: i + 1,
+			includes: Array.isArray(item.includes) ? item.includes.join(", ") : item.includes,
+			excludes: item.excludes ? (Array.isArray(item.excludes) ? item.excludes.join(", ") : item.excludes) : "(none)",
+			result: stats.processing.result.formatted,
+			intervals: stats.processing.result.intervals,
+			comprehensiveStats: stats,
+		});
+	}
+
+	// Combine all intervals for overall statistics
+	const combinedIntervals = allResults.flatMap((r) => r.intervals);
+
+	return {
+		multipleResults: allResults,
+		intervals: combinedIntervals,
+		formatted: allResults.map((r) => `Set ${r.index}: ${r.result}`).join("\n"),
+		allComprehensiveStats: allStats,
+	};
 };
 
 // Display results for multiple interval sets
 const displayMultipleResults = (result) => {
-  console.log('');
-  console.log(formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-  console.log(formatHighlight('                🔢 MULTIPLE INTERVAL SETS RESULTS'));
-  console.log(formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-  console.log('');
+	console.log("");
+	console.log(formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+	console.log(formatHighlight("                🔢 MULTIPLE INTERVAL SETS RESULTS"));
+	console.log(formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+	console.log("");
 
-  result.multipleResults.forEach((setResult, index) => {
-    console.log(formatInfo(`📋 Set ${setResult.index}:`));
-    console.log(formatInfo(`   📥 Includes:`), formatOutput(setResult.includes));
-    console.log(formatInfo(`   📤 Excludes:`), formatOutput(setResult.excludes));
-    console.log(formatSuccess(`   ✨ Result:`), formatHighlight(setResult.result));
-    
-    if (index < result.multipleResults.length - 1) {
-      console.log('');
-    }
-  });
+	result.multipleResults.forEach((setResult, index) => {
+		console.log(formatInfo(`📋 Set ${setResult.index}:`));
+		console.log(formatInfo(`   📥 Includes:`), formatOutput(setResult.includes));
+		console.log(formatInfo(`   📤 Excludes:`), formatOutput(setResult.excludes));
+		console.log(formatSuccess(`   ✨ Result:`), formatHighlight(setResult.result));
 
-  // Overall statistics
-  if (result.intervals.length > 0) {
-    const allIntervalObjects = result.intervals.map(i => Interval.fromObject(i));
-    
-    console.log('');
-    console.log(formatMuted('📈 OVERALL STATISTICS:'));
-    console.log(formatMuted(`   • Total sets processed: ${result.multipleResults.length}`));
-    console.log(formatMuted(`   • Total intervals: ${allIntervalObjects.length}`));
-    console.log(formatMuted(`   • Total coverage: ${allIntervalObjects.reduce((sum, interval) => sum + (interval.end - interval.start + 1), 0)} individual numbers`));
+		if (index < result.multipleResults.length - 1) {
+			console.log("");
+		}
+	});
 
-    if (allIntervalObjects.length > 0) {
-      const starts = allIntervalObjects.map(i => i.start);
-      const ends = allIntervalObjects.map(i => i.end);
-      console.log(formatMuted(`   • Range: ${Math.min(...starts)} to ${Math.max(...ends)}`));
-    }
-    
-    // Memory usage summary
-    if (result.allComprehensiveStats && result.allComprehensiveStats.length > 0) {
-      const totalExecutionTime = result.allComprehensiveStats.reduce((sum, s) => 
-        sum + (s.processing ? s.processing.summary.executionTimeMs : 0), 0);
-      const avgMemoryGrowth = result.allComprehensiveStats.reduce((sum, s) => 
-        sum + (s.processing ? s.processing.summary.memoryGrowth : 0), 0) / result.allComprehensiveStats.length;
-      const maxPeakHeap = Math.max(...result.allComprehensiveStats.map(s => 
-        s.processing ? s.processing.summary.peakHeapUsed : 0));
-      
-      console.log('');
-      console.log(formatMuted('⚡ PERFORMANCE SUMMARY:'));
-      console.log(formatMuted(`   • Total execution time: ${totalExecutionTime.toFixed(2)} ms`));
-      console.log(formatMuted(`   • Average memory growth per set: ${avgMemoryGrowth.toFixed(2)} MB`));
-      console.log(formatMuted(`   • Peak heap usage: ${maxPeakHeap.toFixed(2)} MB`));
-    }
-  }
+	// Overall statistics
+	if (result.intervals.length > 0) {
+		const allIntervalObjects = result.intervals.map((i) => Interval.fromObject(i));
 
-  console.log('');
-  console.log(formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-  console.log('');
+		console.log("");
+		console.log(formatMuted("📈 OVERALL STATISTICS:"));
+		console.log(formatMuted(`   • Total sets processed: ${result.multipleResults.length}`));
+		console.log(formatMuted(`   • Total intervals: ${allIntervalObjects.length}`));
+		console.log(
+			formatMuted(
+				`   • Total coverage: ${allIntervalObjects.reduce((sum, interval) => sum + (interval.end - interval.start + 1), 0)} individual numbers`
+			)
+		);
+
+		if (allIntervalObjects.length > 0) {
+			const starts = allIntervalObjects.map((i) => i.start);
+			const ends = allIntervalObjects.map((i) => i.end);
+			console.log(formatMuted(`   • Range: ${Math.min(...starts)} to ${Math.max(...ends)}`));
+		}
+
+		// Memory usage summary
+		if (result.allComprehensiveStats && result.allComprehensiveStats.length > 0) {
+			const totalExecutionTime = result.allComprehensiveStats.reduce(
+				(sum, s) => sum + (s.processing ? s.processing.summary.executionTimeMs : 0),
+				0
+			);
+			const avgMemoryGrowth =
+				result.allComprehensiveStats.reduce((sum, s) => sum + (s.processing ? s.processing.summary.memoryGrowth : 0), 0) /
+				result.allComprehensiveStats.length;
+			const maxPeakHeap = Math.max(...result.allComprehensiveStats.map((s) => (s.processing ? s.processing.summary.peakHeapUsed : 0)));
+
+			console.log("");
+			console.log(formatMuted("⚡ PERFORMANCE SUMMARY:"));
+			console.log(formatMuted(`   • Total execution time: ${totalExecutionTime.toFixed(2)} ms`));
+			console.log(formatMuted(`   • Average memory growth per set: ${avgMemoryGrowth.toFixed(2)} MB`));
+			console.log(formatMuted(`   • Peak heap usage: ${maxPeakHeap.toFixed(2)} MB`));
+		}
+	}
+
+	console.log("");
+	console.log(formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+	console.log("");
 };
 
 // Main CLI handler
 export const handleCommand = async (options) => {
-  try {
-    let result;
-    let includesInput = '';
-    let excludesInput = '';
+	try {
+		let result;
+		let includesInput = "";
+		let excludesInput = "";
 
-    if (options.file) {
-      // File mode
-      console.log(formatInfo(`📁 Reading from file: ${options.file}`));
-      result = await processFromFile(options.file);
-      
-      // Read file to determine display format
-      const { readFile } = await import('node:fs/promises');
-      const { resolve } = await import('node:path');
-      const content = await readFile(resolve(options.file), { encoding: 'utf8' });
-      const fileData = JSON.parse(content);
-      
-      // Handle array of objects display
-      if (Array.isArray(fileData)) {
-        return displayMultipleResults(result);
-      }
-      
-      // Handle single object display
-      includesInput = Array.isArray(fileData.includes) ? fileData.includes.join(', ') : fileData.includes;
-      excludesInput = fileData.excludes ? (Array.isArray(fileData.excludes) ? fileData.excludes.join(', ') : fileData.excludes) : '';
-    } else if (options.includes) {
-      // Direct input mode
-      includesInput = options.includes;
-      excludesInput = options.excludes || '';
-      result = await processFromArgs(options.includes, options.excludes);
-    } else {
-      throw new Error('No input provided. Use -i for includes or --file for file input.');
-    };
+		if (options.file) {
+			// File mode
+			console.log(formatInfo(`📁 Reading from file: ${options.file}`));
+			result = await processFromFile(options.file);
 
-    // Display beautiful formatted results
-    console.log('');
-    console.log(formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(formatHighlight('                    🔢 INTERVAL PROCESSOR RESULTS'));
-    console.log(formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log('');
-    
-    console.log(formatInfo(`📥 Includes:`), formatOutput(includesInput));
-    if (excludesInput) {
-      console.log(formatInfo(`📤 Excludes:`), formatOutput(excludesInput));
-    } else {
-      console.log(formatMuted(`📤 Excludes: (none)`));
-    }
-    
-    console.log('');
-    console.log(formatSuccess(`✨ Output:`), formatHighlight(result.formatted));
-    
-    // Show statistics if there are intervals
-    if (result.intervals.length > 0) {
-      const stats = result.comprehensiveStats;
-      
-      // Calculate excluded coverage if needed
-      let excludedCoverage = 0;
+			// Read file to determine display format
+			const { readFile } = await import("node:fs/promises");
+			const { resolve } = await import("node:path");
+			const content = await readFile(resolve(options.file), {
+				encoding: "utf8",
+			});
+			const fileData = JSON.parse(content);
 
-      if (excludesInput) {
-        const excludeIntervals = parseIntervals(excludesInput);
-        excludedCoverage = excludeIntervals.reduce((sum, interval) => 
-          sum + (interval.end - interval.start + 1), 0);
-      };
-      
-      console.log('');
-      console.log(formatMuted('📊 Statistics:'));
-      console.log(formatMuted(`   • Number of intervals: ${stats.intervals.count}`));
-      console.log(formatMuted(`   • Total coverage: ${stats.intervals.totalCoverage} individual numbers`));
+			// Handle array of objects display
+			if (Array.isArray(fileData)) {
+				return displayMultipleResults(result);
+			}
 
-      if (excludedCoverage > 0) {
-        console.log(formatMuted(`   • Total excluded: ${excludedCoverage} individual numbers`));
-      };
+			// Handle single object display
+			includesInput = Array.isArray(fileData.includes) ? fileData.includes.join(", ") : fileData.includes;
+			excludesInput = fileData.excludes ? (Array.isArray(fileData.excludes) ? fileData.excludes.join(", ") : fileData.excludes) : "";
+		} else if (options.includes) {
+			// Direct input mode
+			includesInput = options.includes;
+			excludesInput = options.excludes || "";
+			result = await processFromArgs(options.includes, options.excludes);
+		} else {
+			throw new Error("No input provided. Use -i for includes or --file for file input.");
+		}
 
-      console.log(formatMuted(`   • Range: ${stats.intervals.minStart} to ${stats.intervals.maxEnd}`));
-      
-      // Show comprehensive performance data
-      if (stats.processing) {
-        const perf = stats.processing;
+		// Display beautiful formatted results
+		console.log("");
+		console.log(formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+		console.log(formatHighlight("                    🔢 INTERVAL PROCESSOR RESULTS"));
+		console.log(formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+		console.log("");
 
-        console.log('');
-        console.log(formatMuted('⚡ Performance:'));
-        console.log(formatMuted(`   • Execution time: ${perf.summary.executionTimeMs} ms`));
-        console.log(formatMuted(`   • Memory growth: ${perf.summary.memoryGrowth} MB`));
-        console.log(formatMuted(`   • Peak heap used: ${perf.summary.peakHeapUsed} MB`));
-        
-        if (perf.error) {
-          console.log(formatError(`   • Error occurred: ${perf.error.message}`));
-        }
-      }
-    };
-    
-    console.log('');
-    console.log(formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log('');
-  } catch (error) {
-    console.log('');
-    console.error(formatError(`❌ ${error?.message ?? 'An unexpected error occurred'}`));
-    console.log('');
-    process.exit(1);
-  }
+		console.log(formatInfo(`📥 Includes:`), formatOutput(includesInput));
+		if (excludesInput) {
+			console.log(formatInfo(`📤 Excludes:`), formatOutput(excludesInput));
+		} else {
+			console.log(formatMuted(`📤 Excludes: (none)`));
+		}
+
+		console.log("");
+		console.log(formatSuccess(`✨ Output:`), formatHighlight(result.formatted));
+
+		// Show statistics if there are intervals
+		if (result.intervals.length > 0) {
+			const stats = result.comprehensiveStats;
+
+			// Calculate excluded coverage if needed
+			let excludedCoverage = 0;
+
+			if (excludesInput) {
+				const excludeIntervals = parseIntervals(excludesInput);
+				excludedCoverage = excludeIntervals.reduce((sum, interval) => sum + (interval.end - interval.start + 1), 0);
+			}
+
+			console.log("");
+			console.log(formatMuted("📊 Statistics:"));
+			console.log(formatMuted(`   • Number of intervals: ${stats.intervals.count}`));
+			console.log(formatMuted(`   • Total coverage: ${stats.intervals.totalCoverage} individual numbers`));
+
+			if (excludedCoverage > 0) {
+				console.log(formatMuted(`   • Total excluded: ${excludedCoverage} individual numbers`));
+			}
+
+			console.log(formatMuted(`   • Range: ${stats.intervals.minStart} to ${stats.intervals.maxEnd}`));
+
+			// Show comprehensive performance data
+			if (stats.processing) {
+				const perf = stats.processing;
+
+				console.log("");
+				console.log(formatMuted("⚡ Performance:"));
+				console.log(formatMuted(`   • Execution time: ${perf.summary.executionTimeMs} ms`));
+				console.log(formatMuted(`   • Memory growth: ${perf.summary.memoryGrowth} MB`));
+				console.log(formatMuted(`   • Peak heap used: ${perf.summary.peakHeapUsed} MB`));
+
+				if (perf.error) {
+					console.log(formatError(`   • Error occurred: ${perf.error.message}`));
+				}
+			}
+		}
+
+		console.log("");
+		console.log(formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+		console.log("");
+	} catch (error) {
+		console.log("");
+		console.error(formatError(`❌ ${error?.message ?? "An unexpected error occurred"}`));
+		console.log("");
+		process.exit(1);
+	}
 };
 
 // Display help information
 export const showHelp = () => {
-  const help = `
-${formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')}
-${formatHighlight('                  🔢 INTERVAL PROCESSOR CLI v1.0.0')}
-${formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')}
+	const help = `
+${formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")}
+${formatHighlight("                  🔢 INTERVAL PROCESSOR CLI v1.0.0")}
+${formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")}
 
-${formatInfo('🚀 USAGE:')}
+${formatInfo("🚀 USAGE:")}
   node cli.js [OPTIONS]
 
-${formatInfo('⚙️  OPTIONS:')}
-  ${formatSuccess('-i, --includes <intervals>')}    Include intervals (required unless using --file)
-  ${formatInfo('-e, --excludes <intervals>')}    Exclude intervals (optional)
-  ${formatInfo('--file <path>')}                Read input from JSON file
-  ${formatMuted('--help')}                       Show this help message
+${formatInfo("⚙️  OPTIONS:")}
+  ${formatSuccess("-i, --includes <intervals>")}    Include intervals (required unless using --file)
+  ${formatInfo("-e, --excludes <intervals>")}    Exclude intervals (optional)
+  ${formatInfo("--file <path>")}                Read input from JSON file
+  ${formatMuted("--help")}                       Show this help message
 
-${formatInfo('📝 INTERVAL FORMAT:')}
-  ${formatMuted('Single interval:')}    ${formatOutput('"10-100"')}
-  ${formatMuted('Multiple intervals:')} ${formatOutput('"10-100,200-300,400-500"')}
-  ${formatMuted('Negative numbers:')}   ${formatOutput('"-50--10"')} ${formatMuted('(from -50 to -10)')}
+${formatInfo("📝 INTERVAL FORMAT:")}
+  ${formatMuted("Single interval:")}    ${formatOutput('"10-100"')}
+  ${formatMuted("Multiple intervals:")} ${formatOutput('"10-100,200-300,400-500"')}
+  ${formatMuted("Negative numbers:")}   ${formatOutput('"-50--10"')} ${formatMuted("(from -50 to -10)")}
 
-${formatInfo('💡 EXAMPLES:')}
-  ${formatMuted('# Basic usage')}
+${formatInfo("💡 EXAMPLES:")}
+  ${formatMuted("# Basic usage")}
   ${formatOutput('node cli.js -i "10-100" -e "20-30"')}
   
-  ${formatMuted('# Multiple intervals')}
+  ${formatMuted("# Multiple intervals")}
   ${formatOutput('node cli.js -i "50-5000,10-100" -e "95-205"')}
   
-  ${formatMuted('# File input')}
-  ${formatOutput('node cli.js --file input.json')}
+  ${formatMuted("# File input")}
+  ${formatOutput("node cli.js --file input.json")}
 
-${formatInfo('📄 FILE FORMAT (input.json):')}
-  ${formatMuted('Single object format:')}
-  ${formatOutput('{')}
+${formatInfo("📄 FILE FORMAT (input.json):")}
+  ${formatMuted("Single object format:")}
+  ${formatOutput("{")}
   ${formatOutput('  "includes": ["10-100", "200-300"],')}
   ${formatOutput('  "excludes": ["20-30", "250-280"]')}
-  ${formatOutput('}')}
+  ${formatOutput("}")}
 
-  ${formatMuted('Array of objects format (multiple sets):')}
-  ${formatOutput('[')}
-  ${formatOutput('  {')}
+  ${formatMuted("Array of objects format (multiple sets):")}
+  ${formatOutput("[")}
+  ${formatOutput("  {")}
   ${formatOutput('    "includes": ["10-100", "200-300"],')}
   ${formatOutput('    "excludes": ["20-30", "250-280"]')}
-  ${formatOutput('  },')}
-  ${formatOutput('  {')}
+  ${formatOutput("  },")}
+  ${formatOutput("  {")}
   ${formatOutput('    "includes": ["400-500"],')}
   ${formatOutput('    "excludes": ["450-460"]')}
-  ${formatOutput('  }')}
-  ${formatOutput(']')}
+  ${formatOutput("  }")}
+  ${formatOutput("]")}
 
-  ${formatMuted('Alternative string format:')}
-  ${formatOutput('{')}
+  ${formatMuted("Alternative string format:")}
+  ${formatOutput("{")}
   ${formatOutput('  "includes": "10-100,200-300",')}
   ${formatOutput('  "excludes": "20-30,250-280"')}
-  ${formatOutput('}')}
+  ${formatOutput("}")}
 
-${formatInfo('⚡ ALGORITHM:')}
-  Uses Sweep Line Algorithm with ${formatHighlight('O(n log n)')} complexity
+${formatInfo("⚡ ALGORITHM:")}
+  Uses Sweep Line Algorithm with ${formatHighlight("O(n log n)")} complexity
   for optimal performance on large datasets.
 
-${formatHighlight('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')}
+${formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")}
 `;
-  console.log(help);
+	console.log(help);
 };
