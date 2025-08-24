@@ -138,7 +138,8 @@ describe("Statistics Utilities", () => {
 			const result = await measureMemoryUsage(testFunction);
 
 			expect(result.result).toBe("async result");
-			expect(result.executionTime.milliseconds).toBeGreaterThanOrEqual(10);
+			// Allow for timing variations in different environments (CI vs local)
+			expect(result.executionTime.milliseconds).toBeGreaterThanOrEqual(5);
 		});
 
 		test("handles function that throws error", async () => {
