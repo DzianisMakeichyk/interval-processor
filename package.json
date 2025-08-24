@@ -1,11 +1,12 @@
 {
   "name": "interval-processor",
   "version": "1.0.0",
-  "description": "Interval Processor",
+  "description": "Interval Processor - A CLI tool for processing and merging interval ranges",
   "type": "module",
   "main": "src/core/index.js",
   "bin": {
-    "interval-processor": "./cli.js"
+    "interval-processor": "./cli.js",
+    "interval-merge": "./cli.js"
   },
   "scripts": {
     "start": "node cli.js",
@@ -15,11 +16,22 @@
     "lint": "eslint src/**/*.js test/**/*.js cli.js",
     "format": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"cli.js\"",
     "clean": "rm -rf coverage",
-    "prepublishOnly": "npm run clean && npm test"
+    "prepublishOnly": "npm run clean && npm test",
+    "performance": "node performance-test.js"
   },
   "engines": {
     "node": ">=22.0.0"
   },
+  "keywords": [
+    "interval",
+    "merge",
+    "ranges",
+    "cli",
+    "processor",
+    "intervals",
+    "exclude",
+    "include"
+  ],
   "author": "Denis Makeichyk",
   "license": "MIT",
   "devDependencies": {
@@ -30,5 +42,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/DzianisMakeichyk/interval-processor.git"
-  }
+  },
+  "homepage": "https://github.com/DzianisMakeichyk/interval-processor#readme",
+  "bugs": {
+    "url": "https://github.com/DzianisMakeichyk/interval-processor/issues"
+  },
+  "preferGlobal": true
 }
