@@ -1,15 +1,10 @@
 export const REGEX_PATTERNS = {
-	// Basic interval format: optional negative sign, digits, dash, optional negative sign, digits
-	INTERVAL_FORMAT: /^-?\d+\s*-\s*-?\d+$/,
-	// Interval parsing: capture groups for start and end numbers
-	INTERVAL_PARSE: /^(-?\d+)\s*-\s*(-?\d+)$/,
-	// Check if string is only whitespace
-	WHITESPACE_ONLY: /^\s*$/,
-	// JSON file extension
-	JSON_FILE: /\.json$/i,
+	INTERVAL_FORMAT: /^-?\d+\s*-\s*-?\d+$/, // Basic interval format: optional negative sign, digits, dash, optional negative sign, digits
+	INTERVAL_PARSE: /^(-?\d+)\s*-\s*(-?\d+)$/, // Interval parsing: capture groups for start and end numbers
+	WHITESPACE_ONLY: /^\s*$/, // Check if string is only whitespace
+	JSON_FILE: /\.json$/i, // JSON file extension
 };
 
-// Error message templates
 export const ERROR_MESSAGES = {
 	INVALID_FORMAT: (str) => `Invalid format: "${str}". Expected: "start-end" (e.g., "10-100")`,
 	CANNOT_PARSE: (str) => `Cannot parse interval: "${str}"`,

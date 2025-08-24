@@ -45,7 +45,6 @@ const parseCliArgs = () => {
 const main = async () => {
 	const options = parseCliArgs();
 
-	// Show help if requested or no arguments
 	if (options.help || (!options.includes && !options.file)) {
 		showHelp();
 		process.exit(0);

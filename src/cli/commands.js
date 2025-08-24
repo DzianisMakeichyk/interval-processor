@@ -7,20 +7,22 @@ import { validateFileInput, validateCliArgs } from "../utils/validators.js";
 import { getComprehensiveStatistics } from "../utils/statistics.js";
 import { formatOutput, formatError, formatSuccess, formatInfo, formatHighlight, formatMuted } from "./formatters.js";
 
-// Process intervals from command line arguments
+/**
+ * Process intervals from command line arguments with comprehensive statistics.
+ * @param {string} includes - Include intervals string
+ * @param {string} excludes - Exclude intervals string
+ * @returns {Promise<Object>} Processing result with intervals, formatted output, and comprehensive stats
+ * @throws {Error} When validation fails or processing errors occur
+ */
 export const processFromArgs = async (includes, excludes) => {
 	try {
-		// Validate inputs
 		const validation = validateCliArgs(includes, excludes);
 
 		if (!validation.valid) {
 			throw new Error(validation.error);
 		}
 
-		// Parse intervals for comprehensive statistics
 		const includesIntervals = parseIntervals(includes);
-
-		// Get comprehensive statistics with memory measurement
 		const stats = await getComprehensiveStatistics(includesIntervals, () =>
 			IntervalProcessor.process({
 				includes,
@@ -37,14 +39,18 @@ export const processFromArgs = async (includes, excludes) => {
 	}
 };
 
-// Process intervals from a JSON file - supports both single object and array of objects
+/**
+ * Process intervals from a JSON file - supports both single object and array of objects.
+ * @param {string} filePath - Path to the JSON file containing interval data
+ * @returns {Promise<Object[]>} Array of processing results with comprehensive statistics
+ * @throws {Error} When file reading, JSON parsing, validation, or processing fails
+ */
 export const processFromFile = async (filePath) => {
 	try {
 		const absolutePath = resolve(filePath);
 		const content = await readFile(absolutePath, { encoding: "utf8" });
-
-		// Parse JSON
 		let data;
+
 		try {
 			data = JSON.parse(content);
 		} catch {
@@ -57,14 +63,11 @@ export const processFromFile = async (filePath) => {
 			throw new Error(validation.error);
 		}
 
-		// Handle array of objects format
 		if (Array.isArray(data)) {
 			return processArrayOfObjects(data);
 		}
 
-		// Handle single object format (backward compatibility)
 		const includesIntervals = parseIntervals(data.includes);
-		const excludesIntervals = data.excludes ? parseIntervals(data.excludes) : [];
 
 		const stats = await getComprehensiveStatistics(includesIntervals, () =>
 			IntervalProcessor.process({
@@ -78,7 +81,6 @@ export const processFromFile = async (filePath) => {
 			comprehensiveStats: stats,
 		};
 	} catch (error) {
-		// Enhanced error messages with nullish coalescing
 		const message = error?.message ?? "Unknown error";
 
 		if (error?.code === "ENOENT") {
@@ -91,7 +93,6 @@ export const processFromFile = async (filePath) => {
 	}
 };
 
-// Process an array of interval objects
 const processArrayOfObjects = async (dataArray) => {
 	const allResults = [];
 	const allStats = [];
@@ -119,7 +120,6 @@ const processArrayOfObjects = async (dataArray) => {
 		});
 	}
 
-	// Combine all intervals for overall statistics
 	const combinedIntervals = allResults.flatMap((r) => r.intervals);
 
 	return {
@@ -130,7 +130,6 @@ const processArrayOfObjects = async (dataArray) => {
 	};
 };
 
-// Display results for multiple interval sets
 const displayMultipleResults = (result) => {
 	console.log("");
 	console.log(formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
@@ -163,12 +162,6 @@ const displayMultipleResults = (result) => {
 			)
 		);
 
-		if (allIntervalObjects.length > 0) {
-			const starts = allIntervalObjects.map((i) => i.start);
-			const ends = allIntervalObjects.map((i) => i.end);
-			console.log(formatMuted(`   • Range: ${Math.min(...starts)} to ${Math.max(...ends)}`));
-		}
-
 		// Memory usage summary
 		if (result.allComprehensiveStats && result.allComprehensiveStats.length > 0) {
 			const totalExecutionTime = result.allComprehensiveStats.reduce(
@@ -193,7 +186,16 @@ const displayMultipleResults = (result) => {
 	console.log("");
 };
 
-// Main CLI handler
+/**
+ * Main CLI command handler that processes options and displays results.
+ * @param {Object} options - Command line options object
+ * @param {string} [options.includes] - Include intervals string
+ * @param {string} [options.excludes] - Exclude intervals string
+ * @param {string} [options.file] - File path for JSON input
+ * @param {boolean} [options.help] - Show help flag
+ * @returns {Promise<void>} Resolves when command processing is complete
+ * @throws {Error} When processing fails or invalid options provided
+ */
 export const handleCommand = async (options) => {
 	try {
 		let result;
@@ -201,11 +203,9 @@ export const handleCommand = async (options) => {
 		let excludesInput = "";
 
 		if (options.file) {
-			// File mode
 			console.log(formatInfo(`📁 Reading from file: ${options.file}`));
 			result = await processFromFile(options.file);
 
-			// Read file to determine display format
 			const { readFile } = await import("node:fs/promises");
 			const { resolve } = await import("node:path");
 			const content = await readFile(resolve(options.file), {
@@ -213,16 +213,13 @@ export const handleCommand = async (options) => {
 			});
 			const fileData = JSON.parse(content);
 
-			// Handle array of objects display
 			if (Array.isArray(fileData)) {
 				return displayMultipleResults(result);
 			}
 
-			// Handle single object display
 			includesInput = Array.isArray(fileData.includes) ? fileData.includes.join(", ") : fileData.includes;
 			excludesInput = fileData.excludes ? (Array.isArray(fileData.excludes) ? fileData.excludes.join(", ") : fileData.excludes) : "";
 		} else if (options.includes) {
-			// Direct input mode
 			includesInput = options.includes;
 			excludesInput = options.excludes || "";
 			result = await processFromArgs(options.includes, options.excludes);
@@ -247,11 +244,8 @@ export const handleCommand = async (options) => {
 		console.log("");
 		console.log(formatSuccess(`✨ Output:`), formatHighlight(result.formatted));
 
-		// Show statistics if there are intervals
 		if (result.intervals.length > 0) {
 			const stats = result.comprehensiveStats;
-
-			// Calculate excluded coverage if needed
 			let excludedCoverage = 0;
 
 			if (excludesInput) {
@@ -268,9 +262,6 @@ export const handleCommand = async (options) => {
 				console.log(formatMuted(`   • Total excluded: ${excludedCoverage} individual numbers`));
 			}
 
-			console.log(formatMuted(`   • Range: ${stats.intervals.minStart} to ${stats.intervals.maxEnd}`));
-
-			// Show comprehensive performance data
 			if (stats.processing) {
 				const perf = stats.processing;
 
@@ -297,7 +288,10 @@ export const handleCommand = async (options) => {
 	}
 };
 
-// Display help information
+/**
+ * Display help information with usage examples and options.
+ * @returns {void}
+ */
 export const showHelp = () => {
 	const help = `
 ${formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")}
