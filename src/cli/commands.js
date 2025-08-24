@@ -312,12 +312,19 @@ ${formatInfo("📝 INTERVAL FORMAT:")}
   ${formatMuted("Multiple intervals:")} ${formatOutput('"10-100,200-300,400-500"')}
   ${formatMuted("Negative numbers:")}   ${formatOutput('"-50--10"')} ${formatMuted("(from -50 to -10)")}
 
+${formatInfo("⚠️  NEGATIVE INTERVALS:")}
+  ${formatMuted("When using negative intervals, prefer long form options to avoid parsing issues:")}
+  ${formatOutput('node cli.js --includes="-10-2" --excludes="-1-1"')}
+
 ${formatInfo("💡 EXAMPLES:")}
   ${formatMuted("# Basic usage")}
   ${formatOutput('node cli.js -i "10-100" -e "20-30"')}
   
   ${formatMuted("# Multiple intervals")}
   ${formatOutput('node cli.js -i "50-5000,10-100" -e "95-205"')}
+  
+  ${formatMuted("# Negative intervals (use long form)")}
+  ${formatOutput('node cli.js --includes="-10-2" --excludes="-5-0"')}
   
   ${formatMuted("# File input")}
   ${formatOutput("node cli.js --file input.json")}

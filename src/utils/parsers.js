@@ -15,15 +15,30 @@ export const parseIntervalString = (str) => {
 		throw new Error(ERROR_MESSAGES.EMPTY_INTERVAL());
 	}
 
-	// Handle negative numbers by matching the pattern more carefully
-	const match = trimmed.match(REGEX_PATTERNS.INTERVAL_PARSE);
-
-	if (!match) {
+	// Parsing for negative intervals
+	// We need to find the separator dash that's not part of a negative sign
+	let start, end;
+	
+	// Find the separator dash by looking for a dash that's not at the beginning 
+	// and not immediately following another dash
+	let separatorIndex = -1;
+	
+	for (let i = 1; i < trimmed.length; i++) {
+		if (trimmed[i] === '-' && trimmed[i-1] !== '-' && /\d/.test(trimmed[i-1])) {
+			separatorIndex = i;
+			break;
+		}
+	}
+	
+	if (separatorIndex === -1) {
 		throw new Error(ERROR_MESSAGES.INVALID_INTERVAL_FORMAT(str));
 	}
-
-	const start = parseIntegerSafe(match[1]);
-	const end = parseIntegerSafe(match[2]);
+	
+	const startStr = trimmed.substring(0, separatorIndex);
+	const endStr = trimmed.substring(separatorIndex + 1);
+	
+	start = parseIntegerSafe(startStr);
+	end = parseIntegerSafe(endStr);
 
 	if (isNaN(start) || isNaN(end)) {
 		throw new Error(ERROR_MESSAGES.INVALID_NUMBERS(str));
