@@ -219,7 +219,7 @@ export const handleCommand = async (options) => {
 
 			includesInput = Array.isArray(fileData.includes) ? fileData.includes.join(", ") : fileData.includes;
 			excludesInput = fileData.excludes ? (Array.isArray(fileData.excludes) ? fileData.excludes.join(", ") : fileData.excludes) : "";
-		} else if (options.includes) {
+		} else if (options.includes !== undefined && options.includes !== null) {
 			includesInput = options.includes;
 			excludesInput = options.excludes || "";
 			result = await processFromArgs(options.includes, options.excludes);
@@ -323,6 +323,9 @@ ${formatInfo("💡 EXAMPLES:")}
   ${formatMuted("# Multiple intervals")}
   ${formatOutput('node cli.js -i "50-5000,10-100" -e "95-205"')}
   
+  ${formatMuted("# Empty includes (returns 'none')")}
+  ${formatOutput('node cli.js -i "" -e "10-50"')}
+  
   ${formatMuted("# Negative intervals (use long form)")}
   ${formatOutput('node cli.js --includes="-10-2" --excludes="-5-0"')}
   
@@ -353,10 +356,6 @@ ${formatInfo("📄 FILE FORMAT (input.json):")}
   ${formatOutput('  "includes": "10-100,200-300",')}
   ${formatOutput('  "excludes": "20-30,250-280"')}
   ${formatOutput("}")}
-
-${formatInfo("⚡ ALGORITHM:")}
-  Uses Sweep Line Algorithm with ${formatHighlight("O(n log n)")} complexity
-  for optimal performance on large datasets.
 
 ${formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")}
 `;

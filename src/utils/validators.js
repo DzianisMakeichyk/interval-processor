@@ -167,7 +167,7 @@ export const validateCliArgs = (includes, excludes, file) => {
 		return createSuccessResult(); // File content will be validated after reading
 	}
 
-	if (!includes) {
+	if (includes === undefined || includes === null) {
 		return createErrorResult("Must provide includes parameter or file");
 	}
 

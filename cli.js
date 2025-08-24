@@ -59,7 +59,7 @@ const parseCliArgs = () => {
 const main = async () => {
 	const options = parseCliArgs();
 
-	if (options.help || (!options.includes && !options.file)) {
+	if (options.help || ((options.includes === undefined || options.includes === null) && !options.file)) {
 		showHelp();
 		process.exit(0);
 	}
