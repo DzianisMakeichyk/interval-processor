@@ -73,7 +73,6 @@ export class Interval {
 				result.push(new Interval(this.start, exclude.start - 1));
 				result.push(new Interval(exclude.end + 1, this.end));
 			} catch (error) {
-				// If interval creation fails, return original interval
 				return [this];
 			}
 			return result;
@@ -83,7 +82,6 @@ export class Interval {
 			try {
 				result.push(new Interval(exclude.end + 1, this.end));
 			} catch (error) {
-				// If interval creation fails, return empty array
 				return [];
 			}
 			return result;
@@ -93,7 +91,6 @@ export class Interval {
 			try {
 				result.push(new Interval(this.start, exclude.start - 1));
 			} catch (error) {
-				// If interval creation fails, return empty array
 				return [];
 			}
 			return result;
@@ -126,11 +123,11 @@ export class Interval {
 	 * @throws {Error} When data is invalid or interval cannot be created
 	 */
 	static fromObject = (data) => {
-		if (!data || typeof data !== 'object') {
-			throw new Error('Invalid data: must be an object with start and end properties');
+		if (!data || typeof data !== "object") {
+			throw new Error("Invalid data: must be an object with start and end properties");
 		}
-		if (typeof data.start !== 'number' || typeof data.end !== 'number') {
-			throw new Error('Invalid data: start and end must be numbers');
+		if (typeof data.start !== "number" || typeof data.end !== "number") {
+			throw new Error("Invalid data: start and end must be numbers");
 		}
 		return new Interval(data.start, data.end);
 	};

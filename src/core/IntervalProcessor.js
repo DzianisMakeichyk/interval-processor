@@ -18,7 +18,6 @@ export class IntervalProcessor {
 			const includeIntervals = parseIntervals(processInput.includes ?? "");
 			const excludeIntervals = parseIntervals(processInput.excludes ?? "");
 
-			// Edge case: no includes
 			if (includeIntervals.length === 0) {
 				return {
 					intervals: [],
@@ -56,7 +55,6 @@ export class IntervalProcessor {
 			return intervals;
 		}
 
-		// Sort by start point (sweep line)
 		const sorted = [...intervals].sort(Interval.compare);
 		const merged = [];
 		let current = sorted[0];
@@ -79,7 +77,6 @@ export class IntervalProcessor {
 					current = next;
 				}
 			} else {
-				// No overlap - add current to result
 				merged.push(current);
 				current = next;
 			}
@@ -91,35 +88,37 @@ export class IntervalProcessor {
 	};
 
 	/**
-	 * Subtract exclude intervals from include intervals.
-	 * @param {Interval[]} includes - Array of include intervals
+	 * Subtract exclude intervals from include intervals using optimized algorithm.
+	 * @param {Interval[]} includes - Array of include intervals (assumed sorted)
 	 * @param {Interval[]} excludes - Array of exclude intervals
 	 * @returns {Interval[]} Array of remaining intervals after subtraction
 	 */
 	static subtractIntervals = (includes, excludes) => {
-		if (excludes.length === 0) {
-			return includes;
-		}
+		if (excludes.length === 0) return includes;
 
-		let result = [...includes];
+		const sortedExcludes = [...excludes].sort(Interval.compare);
+		const result = [];
 
-		// Process each exclude interval
-		// O(nm) or O(n2)
-		for (const exclude of excludes) {
-			const newResult = [];
+		for (const include of includes) {
+			let current = [include];
 
-			// Subtract exclude from each interval
-			for (const interval of result) {
-				const remaining = interval.subtract(exclude);
-				newResult.push(...remaining);
+			for (const exclude of sortedExcludes) {
+				// Early exit: exclude is beyond current include
+				if (exclude.start > include.end) break;
+				
+				// Skip: exclude is before current include
+				if (exclude.end < include.start) continue;
+
+				// Apply exclude to all current intervals
+				current = current.flatMap(interval => 
+					interval.overlaps(exclude) ? interval.subtract(exclude) : [interval]
+				);
 			}
 
-			result = newResult;
+			result.push(...current);
 		}
 
-		// Sort final result by start point
-		// O(n log(n))
-		return result.sort(Interval.compare);
+		return result;
 	};
 
 	/**
