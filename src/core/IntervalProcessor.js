@@ -44,19 +44,25 @@ export class IntervalProcessor {
 	 * @returns {Interval[]} Array of merged intervals, sorted by start point
 	 */
 	static mergeIntervals = (intervals) => {
-		if (intervals.length <= 1) return intervals;
+		if (intervals.length <= 1) {
+return intervals;
+}
 
 		// Sort by start point (sweep line)
 		const sorted = [...intervals].sort(Interval.compare);
 		const merged = [];
 		let current = sorted[0];
 
-		if (!current) return [];
+		if (!current) {
+return [];
+}
 
 		for (let i = 1; i < sorted.length; i++) {
 			const next = sorted[i];
 
-			if (!next) continue;
+			if (!next) {
+continue;
+}
 			if (current.overlaps(next) || current.isAdjacent(next)) {
 				current = current.merge(next);
 			} else {
@@ -78,7 +84,9 @@ export class IntervalProcessor {
 	 * @returns {Interval[]} Array of remaining intervals after subtraction
 	 */
 	static subtractIntervals = (includes, excludes) => {
-		if (excludes.length === 0) return includes;
+		if (excludes.length === 0) {
+return includes;
+}
 
 		let result = [...includes];
 

@@ -55,8 +55,12 @@ export class Interval {
 	 * @returns {Interval[]} Array of remaining intervals after subtraction
 	 */
 	subtract = (exclude) => {
-		if (!this.overlaps(exclude)) return [this];
-		if (exclude.contains(this)) return [];
+		if (!this.overlaps(exclude)) {
+return [this];
+}
+		if (exclude.contains(this)) {
+return [];
+}
 
 		const result = [];
 

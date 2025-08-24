@@ -36,16 +36,16 @@ const parseCliArgs = () => {
 		};
 	} catch (error) {
 		const errorMsg = error?.message ?? "Unknown error";
-		
+
 		// Check if the error might be related to negative intervals in arguments
-		if (errorMsg.includes("argument is ambiguous") && process.argv.some(arg => arg.includes("-") && /^-\d/.test(arg))) {
+		if (errorMsg.includes("argument is ambiguous") && process.argv.some((arg) => arg.includes("-") && /^-\d/.test(arg))) {
 			console.error(`${errorMsg}`);
 			console.log("");
 			console.log("💡 TIP: When using negative intervals with short flags, the argument parser may");
 			console.log("   interpret negative numbers as option flags. Try using long form options:");
 			console.log("");
-			console.log("   Instead of: node cli.js -i \"-10-2\" -e \"-1-1\"");
-			console.log("   Use:        node cli.js --includes=\"-10-2\" --excludes=\"-1-1\"");
+			console.log('   Instead of: node cli.js -i "-10-2" -e "-1-1"');
+			console.log('   Use:        node cli.js --includes="-10-2" --excludes="-1-1"');
 			console.log("");
 		} else {
 			console.error(`Invalid arguments: ${errorMsg}`);
