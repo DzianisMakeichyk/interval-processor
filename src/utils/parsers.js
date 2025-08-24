@@ -1,5 +1,5 @@
 import { Interval } from "../core/Interval.js";
-import { REGEX_PATTERNS, ERROR_MESSAGES } from "./constants.js";
+import { ERROR_MESSAGES } from "./constants.js";
 import { parseIntegerSafe } from "./helpers.js";
 
 /**
@@ -15,30 +15,27 @@ export const parseIntervalString = (str) => {
 		throw new Error(ERROR_MESSAGES.EMPTY_INTERVAL());
 	}
 
-	// Parsing for negative intervals
-	// We need to find the separator dash that's not part of a negative sign
-	let start, end;
-	
-	// Find the separator dash by looking for a dash that's not at the beginning 
+	// Smart parsing for negative intervals
+	// We need to find the separator dash that's not part of a negative sign	// Find the separator dash by looking for a dash that's not at the beginning
 	// and not immediately following another dash
 	let separatorIndex = -1;
-	
+
 	for (let i = 1; i < trimmed.length; i++) {
-		if (trimmed[i] === '-' && trimmed[i-1] !== '-' && /\d/.test(trimmed[i-1])) {
+		if (trimmed[i] === "-" && trimmed[i - 1] !== "-" && /\d/.test(trimmed[i - 1])) {
 			separatorIndex = i;
 			break;
 		}
 	}
-	
+
 	if (separatorIndex === -1) {
 		throw new Error(ERROR_MESSAGES.INVALID_INTERVAL_FORMAT(str));
 	}
-	
+
 	const startStr = trimmed.substring(0, separatorIndex);
 	const endStr = trimmed.substring(separatorIndex + 1);
-	
-	start = parseIntegerSafe(startStr);
-	end = parseIntegerSafe(endStr);
+
+	const start = parseIntegerSafe(startStr);
+	const end = parseIntegerSafe(endStr);
 
 	if (isNaN(start) || isNaN(end)) {
 		throw new Error(ERROR_MESSAGES.INVALID_NUMBERS(str));
@@ -135,7 +132,9 @@ export const parseWithErrors = (input) => {
  * @returns {string} Formatted string representation or "(none)" if empty
  */
 export const formatIntervals = (intervals) => {
-	if (intervals.length === 0) return "(none)";
+	if (intervals.length === 0) {
+		return "(none)";
+	}
 	return intervals.map((i) => i.toString()).join(", ");
 };
 

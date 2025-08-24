@@ -10,7 +10,9 @@ import { createSuccessResult, createErrorResult, parseIntegerSafe } from "./help
 export const validateIntervalFormat = (str) => {
 	const trimmed = str?.trim() ?? "";
 
-	if (!trimmed) return createSuccessResult(); // Empty is valid (will be filtered)
+	if (!trimmed) {
+		return createSuccessResult();
+	} // Empty is valid (will be filtered)
 
 	if (!REGEX_PATTERNS.INTERVAL_FORMAT.test(trimmed)) {
 		return createErrorResult(ERROR_MESSAGES.INVALID_FORMAT(str));
@@ -51,7 +53,9 @@ export const validateIntervalString = (input) => {
 		.map((s) => s.trim())
 		.filter(Boolean);
 
-	if (intervals.length === 0) return createSuccessResult();
+	if (intervals.length === 0) {
+		return createSuccessResult();
+	}
 
 	for (let i = 0; i < intervals.length; i++) {
 		const result = validateIntervalFormat(intervals[i]);

@@ -84,7 +84,9 @@ export const getMemoryUsage = () => {
  * @returns {Object} returns.summary - Summary with peak usage and growth
  */
 export const measureMemoryUsage = async (fn, label = "operation") => {
-	if (global.gc) global.gc();
+	if (global.gc) {
+		global.gc();
+	}
 
 	const startTime = process.hrtime.bigint();
 	const startMemory = getMemoryUsage();

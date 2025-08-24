@@ -429,10 +429,16 @@ describe("Validator Utilities", () => {
 		});
 
 		test("rejects missing includes without file", () => {
-			const result = validateCliArgs("", "", null);
+			const result = validateCliArgs(undefined, "", null);
 
 			expect(result.valid).toBe(false);
 			expect(result.error).toContain("Must provide includes parameter or file");
+		});
+
+		test("accepts empty includes string", () => {
+			const result = validateCliArgs("", "", null);
+
+			expect(result.valid).toBe(true);
 		});
 
 		test("rejects invalid includes format", () => {
