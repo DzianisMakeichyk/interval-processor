@@ -227,6 +227,11 @@ export const handleCommand = async (options) => {
 			throw new Error("No input provided. Use -i for includes or --file for file input.");
 		}
 
+		if (result.error) {
+			console.error(formatError(`❌ Processing error: ${result.error}`));
+			process.exit(1);
+		}
+
 		// Display beautiful formatted results
 		console.log("");
 		console.log(formatHighlight("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));

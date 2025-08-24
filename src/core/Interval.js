@@ -46,7 +46,11 @@ export class Interval {
 			throw new Error("Cannot merge non-overlapping/non-adjacent intervals");
 		}
 
-		return new Interval(Math.min(this.start, other.start), Math.max(this.end, other.end));
+		try {
+			return new Interval(Math.min(this.start, other.start), Math.max(this.end, other.end));
+		} catch (error) {
+			throw new Error(`Merge failed: ${error.message}`);
+		}
 	};
 
 	/**
@@ -65,21 +69,33 @@ export class Interval {
 		const result = [];
 
 		if (exclude.start > this.start && exclude.end < this.end) {
-			result.push(new Interval(this.start, exclude.start - 1));
-			result.push(new Interval(exclude.end + 1, this.end));
-
+			try {
+				result.push(new Interval(this.start, exclude.start - 1));
+				result.push(new Interval(exclude.end + 1, this.end));
+			} catch (error) {
+				// If interval creation fails, return original interval
+				return [this];
+			}
 			return result;
 		}
 
 		if (exclude.start <= this.start && exclude.end < this.end) {
-			result.push(new Interval(exclude.end + 1, this.end));
-
+			try {
+				result.push(new Interval(exclude.end + 1, this.end));
+			} catch (error) {
+				// If interval creation fails, return empty array
+				return [];
+			}
 			return result;
 		}
 
 		if (exclude.start > this.start && exclude.end >= this.end) {
-			result.push(new Interval(this.start, exclude.start - 1));
-
+			try {
+				result.push(new Interval(this.start, exclude.start - 1));
+			} catch (error) {
+				// If interval creation fails, return empty array
+				return [];
+			}
 			return result;
 		}
 
@@ -107,8 +123,17 @@ export class Interval {
 	 * @param {number} data.start - Start value
 	 * @param {number} data.end - End value
 	 * @returns {Interval} New interval instance
+	 * @throws {Error} When data is invalid or interval cannot be created
 	 */
-	static fromObject = (data) => new Interval(data.start, data.end);
+	static fromObject = (data) => {
+		if (!data || typeof data !== 'object') {
+			throw new Error('Invalid data: must be an object with start and end properties');
+		}
+		if (typeof data.start !== 'number' || typeof data.end !== 'number') {
+			throw new Error('Invalid data: start and end must be numbers');
+		}
+		return new Interval(data.start, data.end);
+	};
 
 	/**
 	 * Compare intervals for sorting (by start, then by end).

@@ -41,7 +41,12 @@ export const parseIntervalString = (str) => {
 		throw new Error(ERROR_MESSAGES.INVALID_NUMBERS(str));
 	}
 
-	return new Interval(start, end);
+	try {
+		return new Interval(start, end);
+	} catch (error) {
+		// Re-throw with more context about the original string
+		throw new Error(`${ERROR_MESSAGES.INVALID_INTERVAL_FORMAT(str)}: ${error.message}`);
+	}
 };
 
 /**

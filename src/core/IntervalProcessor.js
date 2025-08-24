@@ -12,30 +12,38 @@ export class IntervalProcessor {
 	 * @returns {string} returns.formatted - Formatted string representation
 	 */
 	static process = (input, excludes) => {
-		const processInput = typeof input === "string" ? { includes: input, excludes: excludes ?? "" } : input;
+		try {
+			const processInput = typeof input === "string" ? { includes: input, excludes: excludes ?? "" } : input;
 
-		const includeIntervals = parseIntervals(processInput.includes ?? "");
-		const excludeIntervals = parseIntervals(processInput.excludes ?? "");
+			const includeIntervals = parseIntervals(processInput.includes ?? "");
+			const excludeIntervals = parseIntervals(processInput.excludes ?? "");
 
-		// Edge case: no includes
-		if (includeIntervals.length === 0) {
+			// Edge case: no includes
+			if (includeIntervals.length === 0) {
+				return {
+					intervals: [],
+					formatted: "(none)",
+				};
+			}
+
+			// Step 1: Merge overlapping includes
+			const merged = this.mergeIntervals(includeIntervals);
+			// Step 2: Subtract excludes
+			const result = this.subtractIntervals(merged, excludeIntervals);
+			// Step 3: Format output
+			const formatted = result.length > 0 ? result.map((i) => i.toString()).join(", ") : "(none)";
+
+			return {
+				intervals: result.map((i) => i.toJSON()),
+				formatted,
+			};
+		} catch (error) {
 			return {
 				intervals: [],
-				formatted: "(none)",
+				formatted: `(error: ${error.message})`,
+				error: error.message,
 			};
 		}
-
-		// Step 1: Merge overlapping includes
-		const merged = this.mergeIntervals(includeIntervals);
-		// Step 2: Subtract excludes
-		const result = this.subtractIntervals(merged, excludeIntervals);
-		// Step 3: Format output
-		const formatted = result.length > 0 ? result.map((i) => i.toString()).join(", ") : "(none)";
-
-		return {
-			intervals: result.map((i) => i.toJSON()),
-			formatted,
-		};
 	};
 
 	/**
@@ -64,7 +72,12 @@ export class IntervalProcessor {
 				continue;
 			}
 			if (current.overlaps(next) || current.isAdjacent(next)) {
-				current = current.merge(next);
+				try {
+					current = current.merge(next);
+				} catch (error) {
+					merged.push(current);
+					current = next;
+				}
 			} else {
 				// No overlap - add current to result
 				merged.push(current);
